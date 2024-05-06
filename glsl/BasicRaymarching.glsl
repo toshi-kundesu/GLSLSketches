@@ -47,7 +47,12 @@ vec2 map(vec3 p){
         // track the object hit for texturing
         hit = p;
     }
-    
+    // sphere
+    float s = sphere(p-vec3(0,1.,0),1.);
+    if(s<res.x) {
+        res = vec2(s,3.);
+        hit = p;
+    }
     // floor
     float fl = p.y+1.;
     if(fl<res.x) {
