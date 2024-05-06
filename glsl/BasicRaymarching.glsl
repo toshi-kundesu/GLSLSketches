@@ -4,6 +4,26 @@ uniform float time;
 uniform vec2 resolution;
 uniform vec4 mouse;
 
+const float PI = 3.14159265;
+const float angle = 60.0;
+const float fov = angle * 0.5 * PI / 180.0;
+vec3  cPos = vec3(0.0, 0.0, 3.0);
+const float sphereSize = 1.0;
+const vec3 lightDir = vec3(-0.577, 0.577, 0.577);
+
+float distanceFunc(vec3 p){
+    return length(p) - sphereSize;
+}
+
+vec3 getNormal(vec3 p){
+    float d = 0.0001;
+    return normalize(vec3(
+        distanceFunc(p + vec3(  d, 0.0, 0.0)) - distanceFunc(p + vec3( -d, 0.0, 0.0)),
+        distanceFunc(p + vec3(0.0,   d, 0.0)) - distanceFunc(p + vec3(0.0,  -d, 0.0)),
+        distanceFunc(p + vec3(0.0, 0.0,   d)) - distanceFunc(p + vec3(0.0, 0.0,  -d))
+    ));
+}
+
 in VertexData
 {
     vec4 v_position;
@@ -29,7 +49,39 @@ float box(vec3 p, vec3 b) {
   vec3 q = abs(p) - b;
   return length(max(q,0.0)) + min(max(q.x,max(q.y,q.z)),0.0);
 }
+float sphere(vec3 p, float r) {
+    return length(p) - r;
+}
 
+mat3 rotateX(float angle) {
+    float c = cos(angle);
+    float s = sin(angle);
+    return mat3(
+        1.0, 0.0, 0.0,
+        0.0, c, -s,
+        0.0, s, c
+    );
+}
+
+mat3 rotateY(float angle) {
+    float c = cos(angle);
+    float s = sin(angle);
+    return mat3(
+        c, 0.0, s,
+        0.0, 1.0, 0.0,
+       -s, 0.0, c
+    );
+}
+
+mat3 rotateZ(float angle) {
+    float c = cos(angle);
+    float s = sin(angle);
+    return mat3(
+        c, -s, 0.0,
+        s, c, 0.0,
+        0.0, 0.0, 1.0
+    );
+}
 // global vars
 vec3 hit,hitPoint;
 
@@ -37,23 +89,44 @@ vec3 hit,hitPoint;
 
 vec2 map(vec3 p){
     vec2 res = vec2(1e5,0.);
+    // Rotate cube
+// Calculate rotation angles
+    float angleX = sin(time * 0.5) * PI * 0.5;
+    float angleY = sin(time * 0.3) * PI * 0.5;
+    float angleZ = sin(time * 0.4) * PI * 0.5;
+
+    // Combine rotations
+    mat3 rot = rotateX(angleX) * rotateY(angleY) * rotateZ(angleZ);
+    vec3 rotatedP = rot * (p - vec3(0, 1., 0)); // Apply rotation
 
     // box
-    float bx = box(p-vec3(0,1.,0),vec3(1))-.015;
-    // if the distance of bx is less than res.x
-    // we set res.x to bx
-    if(bx<res.x) {
-        res = vec2(bx,2.);
-        // track the object hit for texturing
+    float bx = box(rotatedP, vec3(1)) - .015;
+    if(bx < res.x) {
+        res = vec2(bx, 2.);
         hit = p;
     }
+//    // box
+//    float bx = box(p-vec3(0,1.,0),vec3(1))-.015;
+//    // if the distance of bx is less than res.x
+//    // we set res.x to bx
+//    if(bx<res.x) {
+//        res = vec2(bx,2.);
+//        // track the object hit for texturing
+//        hit = p;
+//    }
+    
     // sphere
-    float s = sphere(p-vec3(0,1.,0),1.);
+    float a = 2.0;
+    vec3 SphereCenterPos = vec3(a*sin(time),3,a*cos(time)); 
+    float s = sphere(p-SphereCenterPos,1.0); // 球の中心を(0,1,0)に設定し、半径を1.0に
     if(s<res.x) {
         res = vec2(s,3.);
         hit = p;
     }
+    
+    
     // floor
+    // 位置
     float fl = p.y+1.;
     if(fl<res.x) {
         res = vec2(fl,1.);
@@ -155,12 +228,17 @@ void main()
         // assign color based on the material set in the map
         if (m==1.) {
             vec2 sv = fract(hitPoint.xz*.25)-.5;
-            if(sv.x*sv.y>0.) h = vec3(.0,.5,.7);
+            if(sv.x*sv.y>0.) h = vec3(0.1,0.1,0.1);
+            else h = vec3(0.,0.,0.);
         }
         
         if(m==2.){
-          vec2 uv=hitPoint.xz*.5;
-          h = mix(vec3(1.,.7,.3),vec3(0),mod(floor(hitPoint.y*5.),2.));
+//          vec2 uv=hitPoint.xz*.5;
+//          h = mix(vec3(1.,.7,.3),vec3(0),mod(floor(hitPoint.y*5.),2.));
+            h = vec3(1.,1.,1.);
+        }
+        if(m==3.){
+            h = vec3(1.0, 0.0, 0.0); // 球に赤色を割り当て
         }
       
         // shading = color * diffused + specular
@@ -173,4 +251,8 @@ void main()
     C = pow(C, vec3(.4545)); 
     // out screen
     fragColor = vec4(C,1.0);
+    
+    /////////////////////
+    
+    
 }
